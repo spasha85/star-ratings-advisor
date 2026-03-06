@@ -181,7 +181,7 @@ Instructions:
                 # Call Cortex LLM
                 response = run_query(f"""
                     SELECT SNOWFLAKE.CORTEX.COMPLETE(
-                        'llama3.1-70b',
+                        'claude-3-5-sonnet',
                         '{safe_full_prompt}'
                     )
                 """)
@@ -204,7 +204,7 @@ Return ONLY the SQL query, no explanation. LIMIT results to 20 rows."""
 
                         safe_sql_prompt = sql_prompt.replace("'", "''")
                         sql_response = run_query(f"""
-                            SELECT SNOWFLAKE.CORTEX.COMPLETE('llama3.1-70b', '{safe_sql_prompt}')
+                            SELECT SNOWFLAKE.CORTEX.COMPLETE('claude-3-5-sonnet', '{safe_sql_prompt}')
                         """)
                         generated_sql = sql_response[0][0].strip() if sql_response else ""
 
