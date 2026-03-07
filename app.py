@@ -189,8 +189,9 @@ CHART_COLORS = ["#0d9488", "#1e3a5f", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899"
 # ============================================================
 st.markdown("""
 <div class="hero-header">
-    <h1>⭐ Star Ratings AI Advisor</h1>
+    <h1>✦ Star Ratings AI Advisor</h1>
     <p>Medicare Advantage Quality Intelligence — Powered by Claude AI on Snowflake Cortex</p>
+    <p style="color: #5eead4; font-size: 0.85rem; margin-top: 0.75rem; font-weight: 500;">Designed & Built by Sadaf Pasha</p>
 </div>
 """, unsafe_allow_html=True)
 
@@ -199,7 +200,7 @@ st.markdown("""
 # SIDEBAR
 # ============================================================
 with st.sidebar:
-    st.markdown("### 🏥 Horizon Health Advantage")
+    st.markdown("### ◈ Horizon Health Advantage")
     st.caption("Contract H1234 · HMO-POS · IL, IN, WI")
     st.divider()
     
@@ -209,26 +210,33 @@ with st.sidebar:
                    SUM(CASE WHEN TOTAL_OPEN_GAPS > 0 THEN 1 ELSE 0 END)
             FROM HEDIS_QUALITY_DB.CLAIMS_DATA.V_CARE_GAP_REGISTRY
         """)
-        st.metric("👥 Total Members", f"{stats[0][0]:,}")
-        st.metric("⚠️ Members with Gaps", f"{stats[0][1]:,}")
-        st.metric("⭐ Current Rating", "3.5 Stars")
-        st.metric("🎯 Target Rating", "4.0 Stars")
+        st.metric("⫸ Total Members", f"{stats[0][0]:,}")
+        st.metric("△ Members with Gaps", f"{stats[0][1]:,}")
+        st.metric("✦ Current Rating", "3.5 Stars")
+        st.metric("◎ Target Rating", "4.0 Stars")
         
         st.divider()
-        st.markdown("### 💰 Revenue at Stake")
+        st.markdown("### ↗ Revenue at Stake")
         st.markdown("**$91.4M** in Quality Bonus Payments unlocked at 4.0 stars")
     except:
         st.info("Connecting to database...")
     
     st.divider()
-    st.caption("Built with Claude AI · Snowflake Cortex · Streamlit")
+    st.markdown("---")
+    st.markdown("""
+    <div style="text-align: center; padding: 0.5rem 0;">
+        <p style="font-size: 0.75rem; color: #94a3b8; margin: 0;">Created by</p>
+        <p style="font-size: 0.95rem; font-weight: 700; color: #5eead4; margin: 0.25rem 0;">Sadaf Pasha</p>
+        <p style="font-size: 0.7rem; color: #64748b; margin: 0;">Claude AI · Snowflake Cortex · Streamlit</p>
+    </div>
+    """, unsafe_allow_html=True)
 
 
 # ============================================================
 # TABS
 # ============================================================
-tab_dashboard, tab_chat, tab_analytics, tab_equity, tab_providers = st.tabs([
-    "📊 Dashboard", "💬 AI Chat", "📈 Analytics", "⚖️ Equity", "🏥 Providers"
+tab_dashboard, tab_predict, tab_whatif, tab_chat, tab_analytics, tab_equity, tab_providers = st.tabs([
+    "◈ Dashboard", "⚡ AI Predictions", "◎ What-If Simulator", "↗ AI Chat", "△ Analytics", "⊞ Equity", "⫸ Providers"
 ])
 
 
@@ -263,7 +271,7 @@ with tab_dashboard:
         col_left, col_right = st.columns([3, 2])
         
         with col_left:
-            st.markdown('<div class="section-header">📋 Measure Compliance Rates</div>', unsafe_allow_html=True)
+            st.markdown('<div class="section-header">◈ Measure Compliance Rates</div>', unsafe_allow_html=True)
             df_measures = run_query_df("""
                 SELECT MEASURE, WEIGHT, ELIGIBLE, COMPLIANT, 
                        ROUND(RATE * 100, 1) AS RATE_PCT,
@@ -301,7 +309,7 @@ with tab_dashboard:
             st.plotly_chart(fig, use_container_width=True)
         
         with col_right:
-            st.markdown('<div class="section-header">🎯 Open Gaps by Measure</div>', unsafe_allow_html=True)
+            st.markdown('<div class="section-header">◎ Open Gaps by Measure</div>', unsafe_allow_html=True)
             df_gaps = run_query_df("""
                 SELECT 'BCS' AS MEASURE, SUM(CASE WHEN BCS_ELIGIBLE=1 AND BCS_COMPLIANT=0 THEN 1 ELSE 0 END) AS GAPS FROM HEDIS_QUALITY_DB.CLAIMS_DATA.V_CARE_GAP_REGISTRY
                 UNION ALL SELECT 'COL', SUM(CASE WHEN COL_ELIGIBLE=1 AND COL_COMPLIANT=0 THEN 1 ELSE 0 END) FROM HEDIS_QUALITY_DB.CLAIMS_DATA.V_CARE_GAP_REGISTRY
@@ -328,7 +336,7 @@ with tab_dashboard:
             fig2.update_traces(textposition="outside", textfont_size=12)
             st.plotly_chart(fig2, use_container_width=True)
 
-        st.markdown('<div class="section-header">🚨 Priority Outreach Members</div>', unsafe_allow_html=True)
+        st.markdown('<div class="section-header">⚡ Priority Outreach Members</div>', unsafe_allow_html=True)
         df_outreach = run_query_df("""
             SELECT MEMBER_ID, LAST_NAME, FIRST_NAME, AGE, PCP_NAME, PCP_GROUP,
                    TOTAL_OPEN_GAPS, OUTREACH_PRIORITY, ROUND(HCC_RISK_SCORE, 2) AS RISK_SCORE
@@ -348,7 +356,7 @@ with tab_dashboard:
 # TAB 2: AI CHAT
 # ============================================================
 with tab_chat:
-    st.markdown('<div class="section-header">💬 Ask Claude About Your Care Gaps</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-header">↗ Ask Claude About Your Care Gaps</div>', unsafe_allow_html=True)
     st.caption("Claude AI analyzes your plan data and CMS Star Ratings documentation to give you specific, actionable answers.")
     
     st.markdown("**Quick questions:**")
@@ -372,7 +380,7 @@ with tab_chat:
         st.session_state.messages = []
 
     for msg in st.session_state.messages:
-        with st.chat_message(msg["role"], avatar="🧑‍⚕️" if msg["role"] == "user" else "🤖"):
+        with st.chat_message(msg["role"], avatar="◇" if msg["role"] == "user" else "✦"):
             st.write(msg["content"])
             if "dataframe" in msg:
                 st.dataframe(msg["dataframe"], use_container_width=True, hide_index=True)
@@ -384,11 +392,11 @@ with tab_chat:
 
     if prompt:
         st.session_state.messages.append({"role": "user", "content": prompt})
-        with st.chat_message("user", avatar="🧑‍⚕️"):
+        with st.chat_message("user", avatar="◇"):
             st.write(prompt)
 
-        with st.chat_message("assistant", avatar="🤖"):
-            with st.spinner("🧠 Claude is analyzing your data and CMS documents..."):
+        with st.chat_message("assistant", avatar="✦"):
+            with st.spinner("✦ Claude is analyzing your data and CMS documents..."):
                 try:
                     measure_data = run_query("""
                         SELECT LISTAGG(MEASURE || ': Rate=' || RATE || ' Wt=' || WEIGHT || ' Elig=' || ELIGIBLE || ' Compl=' || COMPLIANT, '; ')
@@ -437,7 +445,7 @@ Return ONLY SQL. LIMIT 20."""
                                 df = run_query_df(sql)
                                 if not df.empty:
                                     st.divider()
-                                    st.caption("📋 Supporting Data")
+                                    st.caption("◈ Supporting Data")
                                     st.dataframe(df, use_container_width=True, hide_index=True)
                                     msg["dataframe"] = df
                         except: pass
@@ -451,7 +459,7 @@ Return ONLY SQL. LIMIT 20."""
 # TAB 3: ANALYTICS
 # ============================================================
 with tab_analytics:
-    st.markdown('<div class="section-header">📈 Quality Analytics</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-header">△ Quality Analytics</div>', unsafe_allow_html=True)
     
     try:
         col1, col2 = st.columns(2)
@@ -529,7 +537,7 @@ with tab_analytics:
 # TAB 4: EQUITY
 # ============================================================
 with tab_equity:
-    st.markdown('<div class="section-header">⚖️ Health Equity Analysis</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-header">⊞ Health Equity Analysis</div>', unsafe_allow_html=True)
     st.caption("Compare compliance rates across subpopulations to identify disparities")
     
     try:
@@ -600,7 +608,7 @@ with tab_equity:
 # TAB 5: PROVIDERS
 # ============================================================
 with tab_providers:
-    st.markdown('<div class="section-header">🏥 Provider Group Performance</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-header">⫸ Provider Group Performance</div>', unsafe_allow_html=True)
     
     try:
         df_prov = run_query_df("""
@@ -653,13 +661,311 @@ with tab_providers:
 
 
 # ============================================================
+# TAB: AI PREDICTIONS
+# ============================================================
+with tab_predict:
+    st.markdown('<div class="section-header">⚡ AI-Powered Predictive Outreach</div>', unsafe_allow_html=True)
+    st.caption("ML models trained on 2023→2024 real outcomes predict which members will close gaps and which will lapse.")
+
+    try:
+        # Try prediction tables first; fall back to standard views
+        pred_available = True
+        try:
+            run_query("SELECT COUNT(*) FROM HEDIS_QUALITY_DB.CLAIMS_DATA.PREDICTED_CLOSURE")
+        except:
+            pred_available = False
+
+        if pred_available:
+            # KPIs from predictions
+            pc1, pc2, pc3, pc4 = st.columns(4)
+            pred_stats = run_query("""
+                SELECT
+                    (SELECT COUNT(*) FROM HEDIS_QUALITY_DB.CLAIMS_DATA.PREDICTED_CLOSURE) AS SCORED_GAP,
+                    (SELECT COUNT(*) FROM HEDIS_QUALITY_DB.CLAIMS_DATA.PREDICTED_CLOSURE WHERE PREDICTION['probability']['1']::FLOAT >= 0.5) AS HIGH_PROB,
+                    (SELECT COUNT(*) FROM HEDIS_QUALITY_DB.CLAIMS_DATA.PREDICTED_LAPSE WHERE PREDICTION['probability']['1']::FLOAT >= 0.3) AS LAPSE_RISK,
+                    (SELECT ROUND(AVG(PREDICTION['probability']['1']::FLOAT)*100,1) FROM HEDIS_QUALITY_DB.CLAIMS_DATA.PREDICTED_CLOSURE) AS AVG_PROB
+            """)
+            with pc1:
+                st.markdown(f'<div class="kpi-card"><div class="kpi-value">{pred_stats[0][0]:,}</div><div class="kpi-label">Members Scored</div></div>', unsafe_allow_html=True)
+            with pc2:
+                st.markdown(f'<div class="kpi-card"><div class="kpi-value">{pred_stats[0][1]:,}</div><div class="kpi-label">High Closure Prob (≥50%)</div></div>', unsafe_allow_html=True)
+            with pc3:
+                st.markdown(f'<div class="kpi-card"><div class="kpi-value-danger">{pred_stats[0][2]:,}</div><div class="kpi-label">Lapse Risk (≥30%)</div></div>', unsafe_allow_html=True)
+            with pc4:
+                st.markdown(f'<div class="kpi-card"><div class="kpi-value-warning">{pred_stats[0][3]}%</div><div class="kpi-label">Avg Closure Prob</div></div>', unsafe_allow_html=True)
+
+            st.markdown("")
+            col_out, col_lapse = st.columns(2)
+
+            with col_out:
+                st.markdown("**◎ Top Outreach Targets** (highest ROI)")
+                df_outreach_ai = run_query_df("""
+                    SELECT MEMBER_ID, LAST_NAME, FIRST_NAME, AGE, PCP_GROUP,
+                           OPEN_GAPS, CLOSURE_PROBABILITY, OUTREACH_ROI_SCORE, PRIORITY_RANK
+                    FROM HEDIS_QUALITY_DB.CLAIMS_DATA.V_REAL_AI_OUTREACH
+                    LIMIT 25
+                """)
+                st.dataframe(df_outreach_ai, use_container_width=True, hide_index=True,
+                    column_config={
+                        "CLOSURE_PROBABILITY": st.column_config.ProgressColumn("Closure Prob", min_value=0, max_value=1, format="%.1f%%"),
+                        "OUTREACH_ROI_SCORE": st.column_config.NumberColumn("ROI Score", format="%.3f"),
+                    })
+
+            with col_lapse:
+                st.markdown("**△ Lapse Risk Members** (currently compliant, may lapse)")
+                df_lapse = run_query_df("""
+                    SELECT MEMBER_ID, LAST_NAME, FIRST_NAME, AGE, PCP_GROUP,
+                           LAPSE_PROBABILITY, RISK_ACTION
+                    FROM HEDIS_QUALITY_DB.CLAIMS_DATA.V_REAL_AI_LAPSE_RISK
+                    LIMIT 25
+                """)
+                st.dataframe(df_lapse, use_container_width=True, hide_index=True,
+                    column_config={
+                        "LAPSE_PROBABILITY": st.column_config.ProgressColumn("Lapse Prob", min_value=0, max_value=1, format="%.1f%%"),
+                    })
+
+            # Closure probability distribution
+            st.markdown("**Closure Probability Distribution**")
+            df_prob_dist = run_query_df("""
+                SELECT
+                    CASE
+                        WHEN PREDICTION['probability']['1']::FLOAT < 0.2 THEN '0-20%'
+                        WHEN PREDICTION['probability']['1']::FLOAT < 0.4 THEN '20-40%'
+                        WHEN PREDICTION['probability']['1']::FLOAT < 0.6 THEN '40-60%'
+                        WHEN PREDICTION['probability']['1']::FLOAT < 0.8 THEN '60-80%'
+                        ELSE '80-100%'
+                    END AS PROBABILITY_BUCKET,
+                    COUNT(*) AS MEMBERS
+                FROM HEDIS_QUALITY_DB.CLAIMS_DATA.PREDICTED_CLOSURE
+                GROUP BY PROBABILITY_BUCKET
+                ORDER BY PROBABILITY_BUCKET
+            """)
+            fig_prob = px.bar(df_prob_dist, x="PROBABILITY_BUCKET", y="MEMBERS",
+                             color="MEMBERS",
+                             color_continuous_scale=["#ef4444", "#f59e0b", "#10b981"],
+                             text="MEMBERS")
+            fig_prob.update_layout(height=350, showlegend=False,
+                                  margin=dict(l=10,r=10,t=10,b=10),
+                                  plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
+                                  font=dict(family="Plus Jakarta Sans"),
+                                  coloraxis_showscale=False,
+                                  xaxis_title="Predicted Closure Probability",
+                                  yaxis_title="Members")
+            fig_prob.update_traces(textposition="outside")
+            st.plotly_chart(fig_prob, use_container_width=True)
+
+            # Intervention catalog
+            try:
+                st.markdown("**↗ Available Interventions & Expected ROI**")
+                df_interventions = run_query_df("""
+                    SELECT INTERVENTION_NAME, CHANNEL, EFFORT_LEVEL,
+                           COST_PER_MEMBER AS COST, 
+                           ROUND(AVG_CLOSURE_RATE * 100, 0) AS SUCCESS_RATE_PCT,
+                           BEST_FOR_MEASURES
+                    FROM HEDIS_QUALITY_DB.CLAIMS_DATA.INTERVENTION_CATALOG
+                    ORDER BY AVG_CLOSURE_RATE DESC
+                """)
+                st.dataframe(df_interventions, use_container_width=True, hide_index=True)
+            except:
+                st.info("Intervention catalog not yet loaded.")
+
+        else:
+            st.warning("⚠️ ML prediction tables not yet created. Run `04_REAL_AI_TRAINING_V2.sql` then `05_PHASE1_PREDICTIVE_OPS.sql` in Snowflake to enable AI predictions.")
+            st.info("These scripts train ML models on your 2023→2024 data and score every current member with gap closure probability and lapse risk.")
+
+    except Exception as e:
+        st.error(f"Error loading predictions: {str(e)}")
+
+
+# ============================================================
+# TAB: WHAT-IF SIMULATOR
+# ============================================================
+with tab_whatif:
+    st.markdown('<div class="section-header">◎ What-If Scenario Simulator</div>', unsafe_allow_html=True)
+    st.caption("Model the impact of closing additional care gaps on your star rating and QBP revenue.")
+
+    try:
+        whatif_available = True
+        try:
+            run_query("SELECT COUNT(*) FROM HEDIS_QUALITY_DB.CLAIMS_DATA.CMS_CUT_POINTS")
+        except:
+            whatif_available = False
+
+        if whatif_available:
+            # Current star rating overview
+            try:
+                star_data = run_query("""
+                    SELECT WEIGHTED_AVG, OVERALL_STAR_RATING, TOTAL_GAPS_TO_4_STARS,
+                           MEASURES_AT_4_PLUS, TOTAL_MEASURES, ESTIMATED_QBP
+                    FROM HEDIS_QUALITY_DB.CLAIMS_DATA.V_OVERALL_STAR_RATING
+                """)
+                sc1, sc2, sc3, sc4 = st.columns(4)
+                with sc1:
+                    st.markdown(f'<div class="kpi-card"><div class="kpi-value-warning">{star_data[0][1]}⭐</div><div class="kpi-label">Current Rating</div></div>', unsafe_allow_html=True)
+                with sc2:
+                    st.markdown(f'<div class="kpi-card"><div class="kpi-value">{star_data[0][0]}</div><div class="kpi-label">Weighted Average</div></div>', unsafe_allow_html=True)
+                with sc3:
+                    st.markdown(f'<div class="kpi-card"><div class="kpi-value-danger">{int(star_data[0][2])}</div><div class="kpi-label">Total Gaps to 4 Stars</div></div>', unsafe_allow_html=True)
+                with sc4:
+                    qbp = star_data[0][5]
+                    qbp_str = f"${qbp/1000000:.1f}M" if qbp > 0 else "$0"
+                    st.markdown(f'<div class="kpi-card"><div class="kpi-value">{qbp_str}</div><div class="kpi-label">Est. QBP Revenue</div></div>', unsafe_allow_html=True)
+            except:
+                pass
+
+            st.markdown("")
+
+            # Per-measure star breakdown
+            st.markdown("**◈ Measure-Level Star Breakdown**")
+            df_stars = run_query_df("""
+                SELECT MEASURE, ROUND(RATE*100,1) AS RATE_PCT, CURRENT_STARS,
+                       GAPS_TO_4_STARS, ROUND(FOUR_STAR_FLOOR*100,1) AS FOUR_STAR_THRESHOLD,
+                       ELIGIBLE, COMPLIANT, ELIGIBLE - COMPLIANT AS OPEN_GAPS
+                FROM HEDIS_QUALITY_DB.CLAIMS_DATA.V_STAR_RATING_CALCULATOR
+                ORDER BY GAPS_TO_4_STARS DESC
+            """)
+            st.dataframe(df_stars, use_container_width=True, hide_index=True,
+                column_config={
+                    "RATE_PCT": st.column_config.ProgressColumn("Rate %", min_value=0, max_value=100, format="%.1f%%"),
+                    "CURRENT_STARS": st.column_config.NumberColumn("Stars", format="%d ⭐"),
+                })
+
+            # Interactive what-if
+            st.divider()
+            st.markdown("**✦ Scenario: Close Additional Gaps**")
+            st.caption("Select a measure and number of additional gaps to close, then see the projected impact.")
+
+            measures_list = df_stars["MEASURE"].tolist()
+            col_sel1, col_sel2 = st.columns(2)
+            with col_sel1:
+                selected_measure = st.selectbox("Select measure:", measures_list)
+            with col_sel2:
+                max_gaps = int(df_stars[df_stars["MEASURE"] == selected_measure]["OPEN_GAPS"].iloc[0])
+                additional_closures = st.slider("Additional gaps to close:", 0, max(max_gaps, 1), min(20, max_gaps))
+
+            if additional_closures > 0:
+                row = df_stars[df_stars["MEASURE"] == selected_measure].iloc[0]
+                current_rate = float(row["RATE_PCT"])
+                eligible = int(row["ELIGIBLE"])
+                compliant = int(row["COMPLIANT"])
+                threshold = float(row["FOUR_STAR_THRESHOLD"])
+
+                new_compliant = compliant + additional_closures
+                new_rate = round(new_compliant / eligible * 100, 1)
+                reaches_4 = new_rate >= threshold
+
+                rc1, rc2, rc3, rc4 = st.columns(4)
+                with rc1:
+                    st.metric("Current Rate", f"{current_rate}%")
+                with rc2:
+                    st.metric("New Rate", f"{new_rate}%", delta=f"+{round(new_rate - current_rate, 1)}%")
+                with rc3:
+                    st.metric("4-Star Threshold", f"{threshold}%")
+                with rc4:
+                    if reaches_4:
+                        st.success(f"✅ Reaches 4 Stars!")
+                    else:
+                        still_need = max(0, int(eligible * threshold / 100) - new_compliant)
+                        st.warning(f"❌ Need {still_need} more")
+
+                # Gauge chart
+                fig_gauge = go.Figure(go.Indicator(
+                    mode="gauge+number+delta",
+                    value=new_rate,
+                    delta={"reference": current_rate, "suffix": "%"},
+                    number={"suffix": "%"},
+                    title={"text": f"{selected_measure} Compliance Rate"},
+                    gauge={
+                        "axis": {"range": [0, 100]},
+                        "bar": {"color": "#0d9488"},
+                        "steps": [
+                            {"range": [0, threshold], "color": "#fef2f2"},
+                            {"range": [threshold, 100], "color": "#f0fdf4"},
+                        ],
+                        "threshold": {
+                            "line": {"color": "#f59e0b", "width": 4},
+                            "thickness": 0.75,
+                            "value": threshold,
+                        },
+                    },
+                ))
+                fig_gauge.update_layout(height=300, margin=dict(l=30,r=30,t=60,b=10),
+                                       font=dict(family="Plus Jakarta Sans"),
+                                       paper_bgcolor="rgba(0,0,0,0)")
+                st.plotly_chart(fig_gauge, use_container_width=True)
+
+            # Full scenario table
+            st.divider()
+            st.markdown("**◈ All Scenarios — Gaps Needed to Reach 4 Stars per Measure**")
+            try:
+                df_whatif = run_query_df("""
+                    SELECT MEASURE, CURRENT_RATE_PCT, ADDITIONAL_CLOSURES,
+                           NEW_RATE_PCT, RATE_IMPROVEMENT_PCT, NEW_STARS,
+                           FOUR_STAR_THRESHOLD, REACHES_4_STARS
+                    FROM HEDIS_QUALITY_DB.CLAIMS_DATA.V_WHATIF_SUMMARY
+                    WHERE ADDITIONAL_CLOSURES IN (10, 20, 30, 50)
+                    ORDER BY MEASURE, ADDITIONAL_CLOSURES
+                """)
+                st.dataframe(df_whatif, use_container_width=True, hide_index=True)
+            except:
+                st.info("Pre-computed scenarios will appear after running 05_PHASE1_PREDICTIVE_OPS.sql")
+
+            # Budget optimizer
+            st.divider()
+            st.markdown("**↗ Intervention Cost vs Success Rate**")
+            try:
+                df_budget = run_query_df("""
+                    SELECT INTERVENTION_NAME, CHANNEL, COST_PER_MEMBER,
+                           ROUND(AVG_CLOSURE_RATE * 100, 0) AS SUCCESS_RATE_PCT,
+                           EFFORT_LEVEL
+                    FROM HEDIS_QUALITY_DB.CLAIMS_DATA.INTERVENTION_CATALOG
+                    ORDER BY AVG_CLOSURE_RATE DESC
+                """)
+                fig_budget = go.Figure()
+                fig_budget.add_trace(go.Bar(
+                    name="Cost per Member ($)", x=df_budget["INTERVENTION_NAME"],
+                    y=df_budget["COST_PER_MEMBER"], marker_color="#ef4444",
+                    yaxis="y"
+                ))
+                fig_budget.add_trace(go.Scatter(
+                    name="Success Rate (%)", x=df_budget["INTERVENTION_NAME"],
+                    y=df_budget["SUCCESS_RATE_PCT"], marker_color="#10b981",
+                    mode="lines+markers", yaxis="y2"
+                ))
+                fig_budget.update_layout(height=400,
+                    margin=dict(l=10,r=50,t=30,b=10),
+                    plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
+                    font=dict(family="Plus Jakarta Sans"),
+                    yaxis=dict(title="Cost ($)", gridcolor="#f1f5f9"),
+                    yaxis2=dict(title="Success Rate (%)", overlaying="y", side="right"),
+                    legend=dict(orientation="h", y=-0.15))
+                st.plotly_chart(fig_budget, use_container_width=True)
+                st.dataframe(df_budget, use_container_width=True, hide_index=True)
+            except:
+                st.info("Intervention catalog not loaded yet.")
+
+        else:
+            st.warning("⚠️ What-If tables not yet created. Run `05_PHASE1_PREDICTIVE_OPS.sql` in Snowflake to enable the scenario simulator.")
+
+    except Exception as e:
+        st.error(f"Error loading simulator: {str(e)}")
+
+
+# ============================================================
 # FOOTER
 # ============================================================
 st.markdown("""
 <div class="footer">
-    ⭐ Star Ratings AI Advisor · Powered by <a href="https://www.anthropic.com">Claude AI</a> on 
-    <a href="https://www.snowflake.com">Snowflake Cortex</a> · 
-    Built with <a href="https://streamlit.io">Streamlit</a> · 
-    CMS Star Ratings 2026
+    <div style="margin-bottom: 0.5rem;">
+        <span style="font-size: 1.1rem; font-weight: 700; color: #0d9488;">✦</span>
+        <span style="font-weight: 600; color: #334155;"> Star Ratings AI Advisor</span>
+    </div>
+    <div>
+        Designed & Built by <span style="font-weight: 600; color: #0d9488;">Sadaf Pasha</span> · 
+        Powered by <a href="https://www.anthropic.com">Claude AI</a> on 
+        <a href="https://www.snowflake.com">Snowflake Cortex</a> · 
+        Built with <a href="https://streamlit.io">Streamlit</a> · 
+        CMS Star Ratings 2026
+    </div>
 </div>
 """, unsafe_allow_html=True)
