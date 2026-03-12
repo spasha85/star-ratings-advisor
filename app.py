@@ -353,21 +353,21 @@ with tab_dashboard:
 
 
 # ============================================================
-# TAB 2: AI CHAT
+# TAB 2: AI CHAT (Refined — full data context)
 # ============================================================
 with tab_chat:
     st.markdown('<div class="section-header">↗ Ask Claude About Your Care Gaps</div>', unsafe_allow_html=True)
-    st.caption("Claude AI analyzes your plan data and CMS Star Ratings documentation to give you specific, actionable answers.")
-    
+    st.caption("Claude AI analyzes your member enrollment, claims, care gaps, star ratings, and CMS documentation to give specific, data-driven answers.")
+
     st.markdown("**Quick questions:**")
     qcols = st.columns(3)
     questions = [
         ("📋", "What are our compliance rates by measure?"),
         ("🎯", "Which measures to prioritize for 4 stars?"),
-        ("👥", "Show members with the most open gaps"),
+        ("👥", "How many members have both diabetes and heart failure?"),
         ("⚖️", "Compare dual vs non-dual compliance"),
-        ("🏥", "Which providers need improvement?"),
-        ("📄", "What changed in 2026 Star Ratings?"),
+        ("🏥", "Which providers have the lowest A1C rates?"),
+        ("💊", "How many diabetic members are not on statins?"),
     ]
     for i, (icon, q) in enumerate(questions):
         with qcols[i % 3]:
@@ -388,7 +388,7 @@ with tab_chat:
     if "pending_question" in st.session_state:
         prompt = st.session_state.pop("pending_question")
     else:
-        prompt = st.chat_input("Ask about care gaps, CMS requirements, quality improvement...")
+        prompt = st.chat_input("Ask about care gaps, members, conditions, providers, star ratings...")
 
     if prompt:
         st.session_state.messages.append({"role": "user", "content": prompt})
@@ -396,15 +396,84 @@ with tab_chat:
             st.write(prompt)
 
         with st.chat_message("assistant"):
-            with st.spinner("✦ Claude is analyzing your data and CMS documents..."):
+            with st.spinner("✦ Claude is querying your data and analyzing..."):
                 try:
+                    # ---- STEP 1: Gather rich context from multiple sources ----
+
+                    # (A) Measure-level rates
                     measure_data = run_query("""
-                        SELECT LISTAGG(MEASURE || ': Rate=' || RATE || ' Wt=' || WEIGHT || ' Elig=' || ELIGIBLE || ' Compl=' || COMPLIANT, '; ')
+                        SELECT LISTAGG(MEASURE || ': Rate=' || ROUND(RATE*100,1) || '% Wt=' || WEIGHT || ' Elig=' || ELIGIBLE || ' Compl=' || COMPLIANT || ' Gaps=' || (ELIGIBLE-COMPLIANT), '; ')
                         FROM HEDIS_QUALITY_DB.CLAIMS_DATA.V_MEASURE_SUMMARY
                     """)
                     measure_context = measure_data[0][0] if measure_data else "No data"
-                    gap_count = run_query("SELECT COUNT(*) FROM HEDIS_QUALITY_DB.CLAIMS_DATA.V_OUTREACH_WORKLIST")[0][0]
 
+                    # (B) Population-level condition counts from MEMBER_ENROLLMENT
+                    pop_data = run_query("""
+                        SELECT
+                            COUNT(*) AS TOTAL,
+                            SUM(DX_DIABETES) AS DIABETES,
+                            SUM(DX_HYPERTENSION) AS HTN,
+                            SUM(DX_HYPERLIPIDEMIA) AS HLD,
+                            SUM(DX_CHF) AS CHF,
+                            SUM(DX_COPD) AS COPD,
+                            SUM(DX_CKD) AS CKD,
+                            SUM(DX_CAD) AS CAD,
+                            SUM(DX_DEPRESSION) AS DEPRESSION,
+                            SUM(DX_OBESITY) AS OBESITY,
+                            SUM(DUAL_ELIGIBLE_FLAG) AS DUAL,
+                            SUM(DISABILITY_FLAG) AS DISABLED,
+                            SUM(CASE WHEN DX_DIABETES=1 AND DX_CHF=1 THEN 1 ELSE 0 END) AS DM_AND_CHF,
+                            SUM(CASE WHEN DX_DIABETES=1 AND DX_CKD=1 THEN 1 ELSE 0 END) AS DM_AND_CKD,
+                            SUM(CASE WHEN DX_DIABETES=1 AND DX_HYPERTENSION=1 THEN 1 ELSE 0 END) AS DM_AND_HTN,
+                            SUM(CASE WHEN DX_DIABETES=1 AND DX_DEPRESSION=1 THEN 1 ELSE 0 END) AS DM_AND_DEP,
+                            SUM(CASE WHEN DX_CHF=1 AND DX_CKD=1 THEN 1 ELSE 0 END) AS CHF_AND_CKD,
+                            ROUND(AVG(HCC_RISK_SCORE),2) AS AVG_RISK,
+                            ROUND(AVG(AGE),1) AS AVG_AGE
+                        FROM HEDIS_QUALITY_DB.CLAIMS_DATA.MEMBER_ENROLLMENT
+                    """)
+                    p = pop_data[0]
+                    pop_context = (
+                        f"Population: {p[0]} members, avg age {p[18]}, avg HCC risk {p[17]}. "
+                        f"Conditions: Diabetes={p[1]}, HTN={p[2]}, Hyperlipidemia={p[3]}, CHF={p[4]}, COPD={p[5]}, CKD={p[6]}, CAD={p[7]}, Depression={p[8]}, Obesity={p[9]}. "
+                        f"Dual eligible={p[10]}, Disabled={p[11]}. "
+                        f"Comorbidities: DM+CHF={p[12]}, DM+CKD={p[13]}, DM+HTN={p[14]}, DM+Depression={p[15]}, CHF+CKD={p[16]}."
+                    )
+
+                    # (C) Gap & outreach counts
+                    gap_data = run_query("""
+                        SELECT
+                            (SELECT COUNT(*) FROM HEDIS_QUALITY_DB.CLAIMS_DATA.V_OUTREACH_WORKLIST),
+                            (SELECT SUM(CASE WHEN TOTAL_OPEN_GAPS >= 3 THEN 1 ELSE 0 END) FROM HEDIS_QUALITY_DB.CLAIMS_DATA.V_CARE_GAP_REGISTRY)
+                    """)
+                    gap_context = f"Members with open gaps: {gap_data[0][0]}. Members with 3+ gaps: {gap_data[0][1]}."
+
+                    # (D) Star rating info (if available)
+                    star_context = ""
+                    try:
+                        star_data = run_query("""
+                            SELECT LISTAGG(MEASURE || ': ' || CURRENT_STARS || ' stars (rate=' || ROUND(RATE*100,1) || '%, 4-star threshold=' || ROUND(FOUR_STAR_FLOOR*100,1) || '%, gaps to 4★=' || GAPS_TO_4_STARS || ')', '; ')
+                            FROM HEDIS_QUALITY_DB.CLAIMS_DATA.V_STAR_RATING_CALCULATOR
+                        """)
+                        if star_data and star_data[0][0]:
+                            star_context = f"Star ratings: {star_data[0][0]}"
+                    except:
+                        pass
+
+                    # (E) Prediction stats (if available)
+                    pred_context = ""
+                    try:
+                        pred_data = run_query("""
+                            SELECT
+                                (SELECT COUNT(*) FROM HEDIS_QUALITY_DB.CLAIMS_DATA.PREDICTED_CLOSURE),
+                                (SELECT ROUND(AVG(CLOSURE_PROBABILITY),3) FROM HEDIS_QUALITY_DB.CLAIMS_DATA.PREDICTED_CLOSURE),
+                                (SELECT COUNT(*) FROM HEDIS_QUALITY_DB.CLAIMS_DATA.PREDICTED_LAPSE WHERE LAPSE_PROBABILITY >= 0.15)
+                        """)
+                        if pred_data:
+                            pred_context = f"ML predictions: {pred_data[0][0]} members scored for gap closure (avg prob {pred_data[0][1]}), {pred_data[0][2]} members at lapse risk."
+                    except:
+                        pass
+
+                    # (F) CMS document search
                     cms_context = ""
                     try:
                         safe_q = prompt.replace("'", "").replace('"', '')
@@ -413,16 +482,23 @@ with tab_chat:
                                 '{{"query":"{safe_q}","columns":["CHUNK_TEXT","DOCUMENT_TYPE"],"limit":3}}'
                             )):results[0]:CHUNK_TEXT::TEXT
                         """)
-                        if sr and sr[0][0]: cms_context = sr[0][0][:3000]
-                    except: pass
+                        if sr and sr[0][0]: cms_context = f"CMS documentation: {sr[0][0][:2000]}"
+                    except:
+                        pass
 
-                    fp = f"""You are a Medicare Advantage Star Ratings quality improvement advisor.
-Plan: Horizon Health Advantage (H1234), 1,500 members, IL/IN/WI, currently 3.5 stars.
-Measure rates: {measure_context}
-Open gap members: {gap_count}
-CMS docs: {cms_context}
+                    # ---- STEP 2: Build the full prompt ----
+                    fp = f"""You are a Medicare Advantage Star Ratings quality improvement advisor with full access to plan data.
+Plan: Horizon Health Advantage (H1234), HMO-POS, IL/IN/WI, currently 3.5 stars, target 4.0 stars.
+{pop_context}
+Measure performance: {measure_context}
+{gap_context}
+{star_context}
+{pred_context}
+{cms_context}
 Question: {prompt}
-Give specific numbers and actionable recommendations. Be concise."""
+
+IMPORTANT: Use the specific numbers from the data above to answer. If asked about conditions, comorbidities, or member counts, use the Population and Comorbidities data provided.
+Give specific numbers, percentages, and actionable recommendations. Be concise and data-driven."""
 
                     safe_fp = fp.replace("'", "''")
                     resp = run_query(f"SELECT SNOWFLAKE.CORTEX.COMPLETE('claude-3-5-sonnet','{safe_fp}')")
@@ -430,17 +506,61 @@ Give specific numbers and actionable recommendations. Be concise."""
                     st.write(answer)
                     msg = {"role": "assistant", "content": answer}
 
-                    kws = ["show","list","member","who","which","top","compare","provider","rate"]
+                    # ---- STEP 3: Auto-generate supporting SQL query ----
+                    kws = ["show","list","member","who","which","top","compare","provider","rate","how many","count","find","identify","what percent","diabetes","hypertension","heart","dual","statin","adherence","gap","screen"]
                     if any(k in prompt.lower() for k in kws):
                         try:
-                            sq = f"""Write a Snowflake SQL query for: "{prompt}"
-Views: HEDIS_QUALITY_DB.CLAIMS_DATA.V_CARE_GAP_REGISTRY (MEMBER_ID,LAST_NAME,FIRST_NAME,AGE,GENDER,PCP_NAME,PCP_GROUP,DUAL_ELIGIBLE_FLAG,HCC_RISK_SCORE,TOTAL_OPEN_GAPS,BCS_ELIGIBLE,BCS_COMPLIANT,COL_ELIGIBLE,COL_COMPLIANT,A1C_ELIGIBLE,A1C_COMPLIANT,LAST_A1C_VALUE,CBP_ELIGIBLE,CBP_COMPLIANT,LAST_SYSTOLIC,LAST_DIASTOLIC,KED_ELIGIBLE,KED_COMPLIANT,SUPD_ELIGIBLE,SUPD_COMPLIANT,ADH_DM_ELIGIBLE,ADH_DM_COMPLIANT,PDC_DIABETES,ADH_RAS_ELIGIBLE,ADH_RAS_COMPLIANT,PDC_RAS,ADH_STATIN_ELIGIBLE,ADH_STATIN_COMPLIANT,PDC_STATIN)
-V_MEASURE_SUMMARY (MEASURE,WEIGHT,ELIGIBLE,COMPLIANT,RATE)
-V_OUTREACH_WORKLIST (MEMBER_ID,LAST_NAME,FIRST_NAME,AGE,GENDER,PCP_NAME,PCP_GROUP,TOTAL_OPEN_GAPS,OUTREACH_PRIORITY,HCC_RISK_SCORE)
-Return ONLY SQL. LIMIT 20."""
+                            sq = f"""You are a Snowflake SQL expert. Write a SELECT query to answer: "{prompt}"
+
+Available tables and views (all in HEDIS_QUALITY_DB.CLAIMS_DATA):
+
+1. MEMBER_ENROLLMENT — one row per member
+   Columns: MEMBER_ID, FIRST_NAME, LAST_NAME, AGE, GENDER, DATE_OF_BIRTH, ZIP_CODE,
+   PCP_ID, PCP_NAME, PCP_GROUP, DUAL_ELIGIBLE_FLAG, LIS_FLAG, DISABILITY_FLAG,
+   HCC_RISK_SCORE, DX_DIABETES (1/0), DX_HYPERTENSION (1/0), DX_HYPERLIPIDEMIA (1/0),
+   DX_CHF (1/0), DX_COPD (1/0), DX_CKD (1/0), DX_CAD (1/0), DX_DEPRESSION (1/0), DX_OBESITY (1/0)
+
+2. V_CARE_GAP_REGISTRY — one row per member with gap flags
+   Columns: MEMBER_ID, LAST_NAME, FIRST_NAME, AGE, GENDER, PCP_NAME, PCP_GROUP,
+   DUAL_ELIGIBLE_FLAG, DISABILITY_FLAG, HCC_RISK_SCORE, TOTAL_OPEN_GAPS,
+   BCS_ELIGIBLE, BCS_COMPLIANT, COL_ELIGIBLE, COL_COMPLIANT,
+   A1C_ELIGIBLE, A1C_COMPLIANT, LAST_A1C_VALUE,
+   CBP_ELIGIBLE, CBP_COMPLIANT, LAST_SYSTOLIC, LAST_DIASTOLIC,
+   KED_ELIGIBLE, KED_COMPLIANT, SUPD_ELIGIBLE, SUPD_COMPLIANT,
+   ADH_DM_ELIGIBLE, ADH_DM_COMPLIANT, PDC_DIABETES,
+   ADH_RAS_ELIGIBLE, ADH_RAS_COMPLIANT, PDC_RAS,
+   ADH_STATIN_ELIGIBLE, ADH_STATIN_COMPLIANT, PDC_STATIN
+
+3. V_MEASURE_SUMMARY — one row per HEDIS measure
+   Columns: MEASURE, WEIGHT, ELIGIBLE, COMPLIANT, RATE
+
+4. V_OUTREACH_WORKLIST — members needing outreach, sorted by priority
+   Columns: MEMBER_ID, LAST_NAME, FIRST_NAME, AGE, GENDER, PCP_NAME, PCP_GROUP,
+   TOTAL_OPEN_GAPS, OUTREACH_PRIORITY, HCC_RISK_SCORE
+
+5. V_STAR_RATING_CALCULATOR — star rating per measure
+   Columns: MEASURE, RATE, MEASURE_WEIGHT, CURRENT_STARS, GAPS_TO_4_STARS, FOUR_STAR_FLOOR
+
+6. PREDICTED_CLOSURE — ML gap closure predictions
+   Columns: MEMBER_ID, OPEN_GAPS, PREDICTED_OUTCOME, CLOSURE_PROBABILITY
+
+7. PREDICTED_LAPSE — ML lapse risk predictions
+   Columns: MEMBER_ID, PREDICTED_LAPSE, LAPSE_PROBABILITY
+
+Rules:
+- Use MEMBER_ENROLLMENT for condition/diagnosis questions (DX_ columns are 1/0 flags)
+- Use V_CARE_GAP_REGISTRY for care gap questions
+- Always use fully qualified names: HEDIS_QUALITY_DB.CLAIMS_DATA.table_name
+- LIMIT 25 unless the question asks for a count or aggregate
+- Return ONLY the SQL query, no explanation, no markdown fences"""
+
                             safe_sq = sq.replace("'", "''")
                             sr2 = run_query(f"SELECT SNOWFLAKE.CORTEX.COMPLETE('claude-3-5-sonnet','{safe_sq}')")
-                            sql = sr2[0][0].strip().replace("```sql","").replace("```","").strip()
+                            sql = sr2[0][0].strip()
+                            # Clean markdown fences if present
+                            for fence in ["```sql", "```SQL", "```"]:
+                                sql = sql.replace(fence, "")
+                            sql = sql.strip()
                             if sql.upper().startswith("SELECT"):
                                 df = run_query_df(sql)
                                 if not df.empty:
@@ -448,7 +568,8 @@ Return ONLY SQL. LIMIT 20."""
                                     st.caption("◈ Supporting Data")
                                     st.dataframe(df, use_container_width=True, hide_index=True)
                                     msg["dataframe"] = df
-                        except: pass
+                        except Exception as sql_err:
+                            pass  # SQL generation is best-effort
 
                     st.session_state.messages.append(msg)
                 except Exception as e:
