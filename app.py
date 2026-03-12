@@ -380,7 +380,7 @@ with tab_chat:
         st.session_state.messages = []
 
     for msg in st.session_state.messages:
-        with st.chat_message(msg["role"], avatar="◇" if msg["role"] == "user" else "✦"):
+        with st.chat_message(msg["role"]):
             st.write(msg["content"])
             if "dataframe" in msg:
                 st.dataframe(msg["dataframe"], use_container_width=True, hide_index=True)
@@ -392,10 +392,10 @@ with tab_chat:
 
     if prompt:
         st.session_state.messages.append({"role": "user", "content": prompt})
-        with st.chat_message("user", avatar="◇"):
+        with st.chat_message("user"):
             st.write(prompt)
 
-        with st.chat_message("assistant", avatar="✦"):
+        with st.chat_message("assistant"):
             with st.spinner("✦ Claude is analyzing your data and CMS documents..."):
                 try:
                     measure_data = run_query("""
